@@ -14,11 +14,13 @@ from app.models import (
     MomentsExtractionRequest, 
     AskAnalysisRequest,
     VoicenoteGenerationRequest,
+    SimpleScriptRequest,
     TextToSpeechRequest,
     VoicenoteCreationRequest,
     MomentsResponse,
     AskResponse,
     VoicenoteResponse,
+    SimpleScriptResponse,
     TextToSpeechResponse,
     VoicenoteFileResponse,
     VoiceInfo,
@@ -193,6 +195,33 @@ async def generate_script(
             detail=f"Failed to generate script: {str(e)}"
         )
 
+@app.post("/generate-simple-script", response_model=SimpleScriptResponse)
+async def generate_simple_script(request: SimpleScriptRequest):
+    """
+    Simple script generation endpoint matching OpenAI-ScriptWriterDocs.md example
+    
+    This endpoint provides a direct implementation of the generate_script function
+    shown in the documentation for creating concise, casual voicenote scripts.
+    """
+    try:
+        script_text = await script_generator.generate_simple_script(
+            name=request.name,
+            context=request.context
+        )
+        
+        return SimpleScriptResponse(
+            name=request.name,
+            script=script_text,
+            word_count=len(script_text.split()),
+            success=True
+        )
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to generate simple script: {str(e)}"
+        )
+
 @app.post("/generate", response_model=VoicenoteResponse)
 async def generate_voicenote(request: VoicenoteGenerationRequest):
     """
@@ -202,7 +231,7 @@ async def generate_voicenote(request: VoicenoteGenerationRequest):
     1. Extract moments via Sieve where prospect talks about the topic
     2. Use Ask endpoint to get context around those moments  
     3. Send to OpenAI to make a 20-second script for voicenote
-    4. (Future) Send script to ElevenLabs to make voicenote
+    4. Send script to ElevenLabs to make voicenote
     """
     processing_steps = []
     start_time = time.time()
@@ -238,8 +267,26 @@ async def generate_voicenote(request: VoicenoteGenerationRequest):
         
         processing_steps.append("Script generated successfully")
         
-        # Step 3: Future - Generate voicenote with ElevenLabs
-        processing_steps.append("Voicenote generation ready (ElevenLabs integration coming soon)")
+        # Step 3: Generate voicenote with ElevenLabs
+        voicenote_url = None
+        if ELEVENLABS_AVAILABLE:
+            processing_steps.append("Generating voicenote with ElevenLabs...")
+            try:
+                file_path = await elevenlabs_service.create_voicenote_file(
+                    text=script.script,
+                    output_path=None,  # Auto-generate temp file
+                    file_format="mp3"
+                )
+                
+                # Create download URL
+                filename = os.path.basename(file_path)
+                voicenote_url = f"/download-voicenote/{filename}"
+                processing_steps.append(f"Voicenote generated: {filename}")
+                
+            except Exception as e:
+                processing_steps.append(f"Voicenote generation failed: {str(e)}")
+        else:
+            processing_steps.append("ElevenLabs not available - script ready for voice generation")
         
         # Create response
         response = VoicenoteResponse(
@@ -248,7 +295,7 @@ async def generate_voicenote(request: VoicenoteGenerationRequest):
             moments_found=analysis_result["moments"],
             context_analysis=analysis_result["context_analysis"],
             generated_script=script,
-            voicenote_url=None,  # Will be populated when ElevenLabs is integrated
+            voicenote_url=voicenote_url,
             processing_steps=processing_steps,
             success=True
         )
@@ -265,6 +312,114 @@ async def generate_voicenote(request: VoicenoteGenerationRequest):
             status_code=500,
             detail=f"Failed to generate voicenote: {str(e)}"
         )
+
+@app.post("/generate-complete-voicenote")
+async def generate_complete_voicenote(
+    prospect_name: str,
+    podcast_url: str,
+    podcast_name: str = "",
+    query_topic: str = "AI thoughts",
+    tone: str = "casual"
+):
+    """
+    Complete pipeline endpoint matching SampleData/exampleInput.md workflow
+    
+    This endpoint demonstrates the exact workflow described in the sample data:
+    1. Extract moments via Sieve where prospect talks about AI
+    2. Use Ask endpoint to get context around those moments
+    3. Send to OpenAI to make a 20-second script for voicenote
+    4. Send script to ElevenLabs to make voicenote
+    
+    Returns: Complete voicenote ready for podcast outreach
+    """
+    processing_log = []
+    start_time = time.time()
+    
+    try:
+        processing_log.append("🎯 Step 1: Extracting AI discussion moments from podcast...")
+        
+        # Step 1 & 2: Sieve analysis (combined moments + ask)
+        analysis_result = await sieve_service.analyze_moments_with_context(
+            podcast_url=podcast_url,
+            prospect_name=prospect_name,
+            query_topic=query_topic
+        )
+        
+        if not analysis_result["success"]:
+            return {
+                "success": False,
+                "error": f"No {query_topic} discussion found in podcast",
+                "processing_log": processing_log
+            }
+        
+        processing_log.append(f"✅ Found {len(analysis_result['moments'])} relevant moments")
+        processing_log.append(f"🧠 Best moment: {analysis_result['best_moment']['start_time']:.1f}s - {analysis_result['best_moment']['end_time']:.1f}s")
+        
+        processing_log.append("🎯 Step 2: Generating personalized 20-second script...")
+        
+        # Step 3: OpenAI script generation
+        script = await script_generator.generate_simple_script(
+            name=prospect_name,
+            context=analysis_result["context_analysis"]
+        )
+        
+        word_count = len(script.split())
+        processing_log.append(f"✅ Generated {word_count}-word script")
+        
+        # Step 4: ElevenLabs voicenote generation
+        voicenote_info = None
+        if ELEVENLABS_AVAILABLE:
+            processing_log.append("🎯 Step 3: Creating voicenote with ElevenLabs...")
+            
+            try:
+                file_path = await elevenlabs_service.create_voicenote_file(
+                    text=script,
+                    output_path=None,
+                    file_format="mp3"
+                )
+                
+                filename = os.path.basename(file_path)
+                file_size = os.path.getsize(file_path)
+                
+                voicenote_info = {
+                    "filename": filename,
+                    "file_path": file_path,
+                    "file_size_bytes": file_size,
+                    "download_url": f"/download-voicenote/{filename}",
+                    "duration_estimate_seconds": (word_count / 150) * 60  # ~150 words/min
+                }
+                
+                processing_log.append(f"✅ Voicenote created: {filename} ({file_size} bytes)")
+                
+            except Exception as e:
+                processing_log.append(f"❌ Voicenote generation failed: {str(e)}")
+        else:
+            processing_log.append("⚠️ ElevenLabs not available - script ready for manual voice generation")
+        
+        total_time = time.time() - start_time
+        processing_log.append(f"🎉 Pipeline completed in {total_time:.1f} seconds")
+        
+        return {
+            "success": True,
+            "prospect_name": prospect_name,
+            "podcast_name": podcast_name,
+            "query_topic": query_topic,
+            "moments_found": len(analysis_result['moments']),
+            "context_analysis": analysis_result["context_analysis"],
+            "generated_script": script,
+            "script_word_count": word_count,
+            "voicenote": voicenote_info,
+            "processing_log": processing_log,
+            "total_processing_time": total_time
+        }
+        
+    except Exception as e:
+        processing_log.append(f"❌ Pipeline failed: {str(e)}")
+        return {
+            "success": False,
+            "error": str(e),
+            "processing_log": processing_log
+        }
 
 # ElevenLabs Endpoints
 @app.post("/text-to-speech", response_model=TextToSpeechResponse)

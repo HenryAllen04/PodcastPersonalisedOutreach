@@ -1,4 +1,5 @@
 # Purpose: OpenAI integration service for PODVOX - generates personalized voicenote scripts
+# Enhanced to match specifications in OpenAI-ScriptWriterDocs.md
 
 import openai
 from typing import Dict, Any
@@ -43,48 +44,44 @@ class ScriptGeneratorService:
         logger.info(f"Tone: {tone}, Target length: {target_length}s")
         
         try:
-            # Create the prompt based on the example voicenote style
-            system_prompt = f"""
-            You are an expert at creating personalized voicenote scripts for podcast outreach.
+            # System prompt matching OpenAI-ScriptWriterDocs.md specifications
+            system_prompt = """You are a personal outreach assistant that creates short, casual, conversational voicenote scripts for podcast outreach.
+
+Your task is to:
+- Write in natural, friendly spoken English — as if the user is recording a short, informal voice message.
+- Mention the prospect's first name early in the script.
+- Refer to a specific insight or moment from their podcast episode (provided as context).
+- Keep it casual, slightly enthusiastic, suggesting a possible collaboration or follow-up.
+- Make it sound personal, not scripted, and avoid formal email language.
+- End with a light invitation to continue the conversation.
+
+**Formatting Rules**:
+- Write in first person.
+- Avoid filler phrases like "I hope you're doing well" — get to the point quickly.
+- Keep the voicenote under 60 words — concise and snappy."""
             
-            Your task is to create a {target_length}-second voicenote script that:
-            1. References specific content from their podcast episode
-            2. Shows genuine interest and insight
-            3. Offers value or connection
-            4. Maintains a {tone} tone
-            5. Ends with a clear call-to-action
+            # User message format matching the documentation
+            user_message = f"Prospect Name: {prospect_name}\nPodcast Context: {context_analysis}"
             
-            The script should sound natural when spoken aloud and feel personal, not generic.
-            Target speaking pace: ~150 words per minute.
-            """
-            
-            user_prompt = f"""
-            Create a personalized voicenote script for {prospect_name}.
-            
-            Context from their podcast:
-            {context_analysis}
-            
-            Podcast: {podcast_name if podcast_name else "their recent episode"}
-            
-            Style examples:
-            - "Hey [Name], was just listening to your podcast where you mentioned [specific point]. It really resonated with me because [personal connection]. I'd love to [value proposition]. Let me know your thoughts."
-            
-            Make it sound authentic and conversational, like you're genuinely reaching out because their content inspired you.
-            
-            Target length: {target_length} seconds (approximately {target_length * 2.5:.0f} words)
-            """
+            # Add podcast name if provided for more context
+            if podcast_name:
+                user_message += f"\nPodcast Name: {podcast_name}"
             
             response = self.client.chat.completions.create(
-                model="gpt-4-turbo-preview",
+                model="gpt-4",
+                temperature=0.8,  # Higher creativity as specified in docs
                 messages=[
                     {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt}
+                    {"role": "user", "content": user_message}
                 ],
-                max_tokens=300,
-                temperature=0.7
+                max_tokens=150,  # Reduced since we want under 60 words
             )
             
             generated_text = response.choices[0].message.content.strip()
+            
+            # Log word count for validation
+            word_count = len(generated_text.split())
+            logger.info(f"Generated script with {word_count} words")
             
             script = GeneratedScript(
                 script=generated_text,
@@ -98,6 +95,58 @@ class ScriptGeneratorService:
             
         except Exception as e:
             logger.error(f"Error generating script: {str(e)}")
+            raise Exception(f"Failed to generate script: {str(e)}")
+    
+    async def generate_simple_script(
+        self,
+        name: str,
+        context: str
+    ) -> str:
+        """
+        Simple script generation function matching the documentation example
+        
+        Args:
+            name: Prospect's name
+            context: Podcast context from Sieve analysis
+            
+        Returns:
+            Generated script text (string)
+        """
+        logger.info(f"Generating simple script for {name}")
+        
+        try:
+            system_prompt = """You are a personal outreach assistant that creates short, casual, conversational voicenote scripts for podcast outreach.
+
+Your task is to:
+- Write in natural, friendly spoken English — as if the user is recording a short, informal voice message.
+- Mention the prospect's first name early in the script.
+- Refer to a specific insight or moment from their podcast episode (provided as context).
+- Keep it casual, slightly enthusiastic, suggesting a possible collaboration or follow-up.
+- Make it sound personal, not scripted, and avoid formal email language.
+- End with a light invitation to continue the conversation.
+
+**Formatting Rules**:
+- Write in first person.
+- Avoid filler phrases like "I hope you're doing well" — get to the point quickly.
+- Keep the voicenote under 60 words — concise and snappy."""
+            
+            user_message = f"Prospect Name: {name}\nPodcast Context: {context}"
+            
+            response = self.client.chat.completions.create(
+                model="gpt-4",
+                temperature=0.8,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_message}
+                ]
+            )
+            
+            generated_text = response.choices[0].message.content.strip()
+            logger.info(f"Generated simple script: {len(generated_text.split())} words")
+            return generated_text
+            
+        except Exception as e:
+            logger.error(f"Error generating simple script: {str(e)}")
             raise Exception(f"Failed to generate script: {str(e)}")
     
     async def refine_script_for_voice(
@@ -119,7 +168,7 @@ class ScriptGeneratorService:
         
         try:
             prompt = f"""
-            Optimize this voicenote script for natural speech delivery:
+            Optimize this voicenote script for natural speech delivery while keeping it under 60 words:
             
             Original script:
             {script}
@@ -131,15 +180,16 @@ class ScriptGeneratorService:
             4. Remove any awkward phrasing
             5. Ensure smooth flow when spoken aloud
             6. Keep the core message and personalization intact
+            7. Stay under 60 words maximum
             
             Return only the optimized script text.
             """
             
             response = self.client.chat.completions.create(
-                model="gpt-4-turbo-preview",
+                model="gpt-4",
+                temperature=0.3,  # Lower temperature for refinement
                 messages=[{"role": "user", "content": prompt}],
-                max_tokens=200,
-                temperature=0.3
+                max_tokens=150,
             )
             
             refined_script = response.choices[0].message.content.strip()

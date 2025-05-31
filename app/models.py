@@ -37,6 +37,33 @@ class VoicenoteGenerationRequest(BaseModel):
     tone: Optional[str] = "casual"
     query_topic: Optional[str] = "AI thoughts"
 
+class SimpleScriptRequest(BaseModel):
+    """Request model for simple script generation matching OpenAI docs example"""
+    name: str
+    context: str
+
+# ElevenLabs Models
+class TextToSpeechRequest(BaseModel):
+    """Request model for ElevenLabs text-to-speech conversion"""
+    text: str
+    voice_id: Optional[str] = None
+    model_id: Optional[str] = "eleven_monolingual_v1"
+    voice_settings: Optional[Dict[str, Any]] = None
+
+class VoiceSettings(BaseModel):
+    """ElevenLabs voice configuration settings"""
+    stability: float = 0.5
+    similarity_boost: float = 0.8
+    style: float = 0.0
+    use_speaker_boost: bool = True
+
+class VoicenoteCreationRequest(BaseModel):
+    """Request model for creating voicenote files"""
+    text: str
+    voice_id: Optional[str] = None
+    output_format: Optional[str] = "mp3"
+    voice_settings: Optional[VoiceSettings] = None
+
 # Response Models
 class MomentResult(BaseModel):
     """Individual moment extracted from podcast"""
@@ -68,6 +95,13 @@ class GeneratedScript(BaseModel):
     tone: str
     created_at: datetime
 
+class SimpleScriptResponse(BaseModel):
+    """Response model for simple script generation"""
+    name: str
+    script: str
+    word_count: int
+    success: bool = True
+
 class VoicenoteResponse(BaseModel):
     """Complete voicenote generation response"""
     prospect_name: str
@@ -78,6 +112,30 @@ class VoicenoteResponse(BaseModel):
     voicenote_url: Optional[str] = None
     processing_steps: List[str]
     success: bool = True
+
+# ElevenLabs Response Models
+class TextToSpeechResponse(BaseModel):
+    """Response from ElevenLabs text-to-speech conversion"""
+    audio_size_bytes: int
+    generation_time_seconds: float
+    success: bool = True
+    message: Optional[str] = None
+
+class VoicenoteFileResponse(BaseModel):
+    """Response for voicenote file creation"""
+    file_path: str
+    file_size_bytes: int
+    duration_estimate_seconds: Optional[float] = None
+    voice_id: str
+    success: bool = True
+
+class VoiceInfo(BaseModel):
+    """ElevenLabs voice information"""
+    voice_id: str
+    name: str
+    category: str
+    description: Optional[str] = None
+    preview_url: Optional[str] = None
 
 # Error Models
 class ErrorResponse(BaseModel):
