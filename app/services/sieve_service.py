@@ -3,6 +3,7 @@
 import sieve
 import asyncio
 import time
+import os
 from typing import List, Dict, Any, Optional
 from app.config import settings
 from app.models import MomentResult, MomentsResponse, AskResponse
@@ -16,15 +17,17 @@ class SieveService:
     """Service class for interacting with Sieve APIs"""
     
     def __init__(self):
-        """Initialize Sieve service with API key"""
-        # Set up Sieve authentication
-        sieve.set_api_key(settings.sieve_api_key)
+        """Initialize Sieve service with environment variable authentication"""
+        # Sieve now uses environment variable authentication
+        # Make sure SIEVE_API_KEY is set in environment
+        if not os.getenv('SIEVE_API_KEY'):
+            os.environ['SIEVE_API_KEY'] = settings.sieve_api_key
         
         # Get function references
         self.moments_function = sieve.function.get("sieve/moments")
         self.ask_function = sieve.function.get("sieve/ask")
         
-        logger.info("Sieve service initialized successfully")
+        logger.info("Sieve service initialized successfully with environment authentication")
     
     async def extract_moments(
         self,
@@ -76,18 +79,25 @@ class SieveService:
                 # Get results (this blocks until complete)
                 results = job.result()
                 
+                # Convert generator to list
+                results_list = list(results)
+                
                 # Process results into our format
-                for result in results:
+                for result in results_list:
+                    start_time = result.get('start_time', 0)
+                    end_time = result.get('end_time', 0)
+                    duration = end_time - start_time  # Calculate duration
+                    
                     moment = MomentResult(
-                        start_time=result.get('start_time', 0),
-                        end_time=result.get('end_time', 0),
-                        duration=result.get('duration', 0),
-                        clip_url=result.get('clip_url'),
+                        start_time=start_time,
+                        end_time=end_time,
+                        duration=duration,
+                        clip_url=result.get('clip_url'),  # Optional field
                         description=f"Query: {query}"
                     )
                     all_moments.append(moment)
                     
-                logger.info(f"Found {len(results)} moments for query: '{query}'")
+                logger.info(f"Found {len(results_list)} moments for query: '{query}'")
             
             processing_time = time.time() - start_process_time
             
@@ -141,8 +151,7 @@ class SieveService:
                 prompt=prompt,
                 start_time=start_time,
                 end_time=end_time,
-                backend=backend,
-                output_schema=None  # Can be added for structured output
+                backend=backend
             )
             
             # Get results

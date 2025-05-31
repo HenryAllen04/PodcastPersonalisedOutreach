@@ -258,10 +258,10 @@ async def http_exception_handler(request, exc):
     """Custom HTTP exception handler"""
     return JSONResponse(
         status_code=exc.status_code,
-        content=ErrorResponse(
-            error=exc.detail,
-            timestamp=datetime.now()
-        ).dict()
+        content={
+            "error": exc.detail,
+            "timestamp": datetime.now().isoformat()
+        }
     )
 
 @app.exception_handler(Exception)
@@ -269,11 +269,11 @@ async def general_exception_handler(request, exc):
     """General exception handler for unexpected errors"""
     return JSONResponse(
         status_code=500,
-        content=ErrorResponse(
-            error="Internal server error",
-            detail=str(exc),
-            timestamp=datetime.now()
-        ).dict()
+        content={
+            "error": "Internal server error",
+            "detail": str(exc),
+            "timestamp": datetime.now().isoformat()
+        }
     )
 
 if __name__ == "__main__":

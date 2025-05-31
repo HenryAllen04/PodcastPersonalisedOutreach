@@ -3,7 +3,7 @@ fastapi==0.104.1
 uvicorn[standard]==0.24.0
 
 # API integrations
-sievedata==0.1.14
+sievedata==1.5.0
 openai==1.3.5
 
 # Environment and configuration
