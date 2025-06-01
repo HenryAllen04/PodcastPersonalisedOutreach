@@ -1,6 +1,5 @@
 # Purpose: Docker Compose configuration for PODVOX backend and frontend development
 
-version: "3.9"
 services:
   backend:
     build: ./backend
@@ -16,8 +15,10 @@ services:
       - .env
 
   frontend:
-    build: ./frontend
-    depends_on:
-      - backend
+    build: 
+      context: ./frontend
+      target: development
     ports:
-      - "3000:3000" 
+      - "3000:3000"
+    depends_on:
+      - backend 
