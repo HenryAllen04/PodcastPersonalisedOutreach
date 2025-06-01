@@ -1,0 +1,49 @@
+# Purpose: Exclude unnecessary files from Docker build context
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+.coverage
+.pytest_cache/
+
+# Tests - main culprit of reload issues
+tests/
+test_*.py
+*_test.py
+
+# Environment
+.env
+.venv
+env/
+venv/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Documentation
+*.md
+docs/
+
+# Misc
+*.log
+*.mp3
+*.wav
+*.mp4
+SampleData/
+SieveIntergrationHelp/ 

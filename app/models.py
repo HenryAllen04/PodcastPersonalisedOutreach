@@ -49,6 +49,8 @@ class TextToSpeechRequest(BaseModel):
     voice_id: Optional[str] = None
     model_id: Optional[str] = "eleven_monolingual_v1"
     voice_settings: Optional[Dict[str, Any]] = None
+    
+    model_config = {"protected_namespaces": ()}
 
 class VoiceSettings(BaseModel):
     """ElevenLabs voice configuration settings"""

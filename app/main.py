@@ -3,10 +3,14 @@
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 import time
 import os
+import logging
 from datetime import datetime
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 from app.config import settings
 from app.models import (
@@ -419,6 +423,176 @@ async def generate_complete_voicenote(
             "success": False,
             "error": str(e),
             "processing_log": processing_log
+        }
+
+@app.post("/generate-voicenote-simple")
+async def generate_voicenote_simple(
+    topic: str,
+    video_url: str,
+    prospect_name: Optional[str] = None
+):
+    """
+    Simplified endpoint - just needs topic and video URL
+    
+    Args:
+        topic: What to search for (e.g., "AI thoughts", "productivity tips")
+        video_url: YouTube or podcast video URL
+        prospect_name: Optional - name for personalization (can be extracted from video)
+    
+    Returns:
+        Complete voicenote with download link
+    """
+    start_time = time.time()
+    
+    try:
+        logger.info("="*80)
+        logger.info("🚀 PODVOX SIMPLIFIED PIPELINE STARTED")
+        logger.info(f"🎯 Topic: {topic}")
+        logger.info(f"📺 Video: {video_url}")
+        logger.info(f"👤 Prospect: {prospect_name or 'Auto-detect'}")
+        logger.info("="*80)
+        
+        # If no prospect name provided, use generic
+        if not prospect_name:
+            prospect_name = "there"  # Generic pronoun for the script
+        
+        # STAGE 1: MOMENTS EXTRACTION
+        logger.info("🎯 STAGE 1: MOMENTS EXTRACTION (Sieve Moments API)")
+        logger.info(f"   📍 Searching for '{topic}' moments in video...")
+        stage1_start = time.time()
+        
+        analysis_result = await sieve_service.analyze_moments_with_context(
+            podcast_url=video_url,
+            prospect_name=prospect_name,
+            query_topic=topic
+        )
+        
+        stage1_time = time.time() - stage1_start
+        
+        if not analysis_result["success"]:
+            logger.error(f"❌ STAGE 1 FAILED: No moments found for topic '{topic}'")
+            return {
+                "success": False,
+                "error": "No relevant moments found for the specified topic",
+                "topic": topic,
+                "video_url": video_url,
+                "stage_completed": "1 - Moments Extraction",
+                "stage_failed": True
+            }
+        
+        logger.info(f"✅ STAGE 1 COMPLETED in {stage1_time:.1f}s")
+        logger.info(f"   📊 Found {len(analysis_result['moments'])} moments")
+        logger.info(f"   ⏱️ Best moment: {analysis_result['best_moment']['start_time']:.1f}s - {analysis_result['best_moment']['end_time']:.1f}s")
+        
+        # Note: STAGE 2 (Ask API) is already included in analyze_moments_with_context
+        logger.info("✅ STAGE 2 COMPLETED: Context analysis (Sieve Ask API)")
+        logger.info(f"   📝 Context length: {len(analysis_result['context_analysis'])} characters")
+        
+        # STAGE 3: SCRIPT GENERATION 
+        logger.info("🎯 STAGE 3: SCRIPT GENERATION (OpenAI ChatGPT)")
+        logger.info(f"   🤖 Generating personalized script for '{prospect_name}'...")
+        stage3_start = time.time()
+        
+        script_result = await script_generator.generate_simple_script(
+            name=prospect_name,
+            context=analysis_result["context_analysis"]
+        )
+        
+        stage3_time = time.time() - stage3_start
+        logger.info(f"✅ STAGE 3 COMPLETED in {stage3_time:.1f}s")
+        logger.info(f"   📄 Script: \"{script_result.script}\"")
+        logger.info(f"   📊 Word count: {script_result.word_count} words")
+        
+        # STAGE 4: VOICE SYNTHESIS
+        logger.info("🎯 STAGE 4: VOICE SYNTHESIS (ElevenLabs)")
+        logger.info(f"   🎧 Converting script to voicenote...")
+        stage4_start = time.time()
+        
+        if not ELEVENLABS_AVAILABLE:
+            logger.warning("⚠️ STAGE 4 SKIPPED: ElevenLabs not available")
+            total_time = time.time() - start_time
+            
+            return {
+                "success": True,
+                "topic": topic,
+                "video_url": video_url,
+                "prospect_name": prospect_name,
+                "generated_script": script_result.script,
+                "script_word_count": script_result.word_count,
+                "moments_found": len(analysis_result["moments"]),
+                "voicenote": None,
+                "processing_info": analysis_result["processing_info"],
+                "stage_times": {
+                    "stage1_moments": f"{stage1_time:.1f}s",
+                    "stage2_ask": "included in stage1",
+                    "stage3_chatgpt": f"{stage3_time:.1f}s",
+                    "stage4_elevenlabs": "skipped",
+                    "total": f"{total_time:.1f}s"
+                },
+                "elevenlabs_available": False
+            }
+        
+        timestamp = int(time.time())
+        filename = f"voicenote_{topic.replace(' ', '_')}_{timestamp}.mp3"
+        voicenote_path = f"/tmp/{filename}"
+        
+        await elevenlabs_service.create_voicenote_file(
+            text=script_result.script,
+            output_path=voicenote_path
+        )
+        
+        stage4_time = time.time() - stage4_start
+        total_time = time.time() - start_time
+        
+        logger.info(f"✅ STAGE 4 COMPLETED in {stage4_time:.1f}s")
+        logger.info(f"   🎵 Voicenote saved: {filename}")
+        
+        logger.info("="*80)
+        logger.info("🎉 PODVOX PIPELINE COMPLETED SUCCESSFULLY!")
+        logger.info(f"⏱️ Total time: {total_time:.1f}s")
+        logger.info(f"   Stage 1 (Moments): {stage1_time:.1f}s")
+        logger.info(f"   Stage 2 (Ask): included in Stage 1")
+        logger.info(f"   Stage 3 (ChatGPT): {stage3_time:.1f}s") 
+        logger.info(f"   Stage 4 (ElevenLabs): {stage4_time:.1f}s")
+        logger.info("="*80)
+        
+        return {
+            "success": True,
+            "topic": topic,
+            "video_url": video_url,
+            "prospect_name": prospect_name,
+            "generated_script": script_result.script,
+            "script_word_count": script_result.word_count,
+            "moments_found": len(analysis_result["moments"]),
+            "voicenote": {
+                "filename": filename,
+                "download_url": f"/download-voicenote/{filename}"
+            },
+            "processing_info": analysis_result["processing_info"],
+            "stage_times": {
+                "stage1_moments": f"{stage1_time:.1f}s",
+                "stage2_ask": "included in stage1", 
+                "stage3_chatgpt": f"{stage3_time:.1f}s",
+                "stage4_elevenlabs": f"{stage4_time:.1f}s",
+                "total": f"{total_time:.1f}s"
+            },
+            "elevenlabs_available": True
+        }
+        
+    except Exception as e:
+        total_time = time.time() - start_time
+        logger.error("="*80)
+        logger.error("❌ PODVOX PIPELINE FAILED")
+        logger.error(f"❌ Error: {str(e)}")
+        logger.error(f"⏱️ Failed after: {total_time:.1f}s")
+        logger.error("="*80)
+        
+        return {
+            "success": False,
+            "error": str(e),
+            "topic": topic,
+            "video_url": video_url,
+            "total_time": f"{total_time:.1f}s"
         }
 
 # ElevenLabs Endpoints

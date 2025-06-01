@@ -28,6 +28,7 @@ class SieveService:
         self.ask_function = sieve.function.get("sieve/ask")
         
         logger.info("Sieve service initialized successfully with environment authentication")
+        logger.info(f"SIEVE_API_KEY present: {bool(os.getenv('SIEVE_API_KEY'))}")
     
     async def extract_moments(
         self,
@@ -36,7 +37,7 @@ class SieveService:
         min_clip_length: float = 10.0,
         start_time: float = 0,
         end_time: float = -1,
-        render: bool = True
+        render: bool = False  # Keep False for better performance as requested
     ) -> MomentsResponse:
         """
         Extract moments from podcast using Sieve Moments API
@@ -47,24 +48,33 @@ class SieveService:
             min_clip_length: Minimum clip length in seconds
             start_time: Start processing from this time
             end_time: End processing at this time (-1 for full video)
-            render: Whether to render extracted clips
+            render: Whether to render extracted clips (False = metadata only, faster)
             
         Returns:
             MomentsResponse with extracted moments
         """
         start_process_time = time.time()
-        logger.info(f"Starting moments extraction for: {podcast_url}")
-        logger.info(f"Queries: {queries}")
+        logger.info("="*80)
+        logger.info(f"🎯 STARTING SIEVE MOMENTS EXTRACTION")
+        logger.info(f"📺 Podcast URL: {podcast_url}")
+        logger.info(f"🔍 Queries: {queries}")
+        logger.info(f"⏱️  Min clip length: {min_clip_length}s")
+        logger.info(f"🎬 Render clips: {render}")
+        logger.info(f"📊 Time range: {start_time}s to {end_time}s")
+        logger.info("="*80)
         
         try:
             # Create Sieve File object
+            logger.info(f"📁 Creating Sieve File object...")
             video = sieve.File(url=podcast_url)
+            logger.info(f"✅ Sieve File created successfully")
             
             all_moments = []
             
             # Process each query separately for better results
-            for query in queries:
-                logger.info(f"Processing query: '{query}'")
+            for i, query in enumerate(queries, 1):
+                logger.info(f"\n🔍 Processing query {i}/{len(queries)}: '{query}'")
+                logger.info(f"⏳ Pushing job to Sieve...")
                 
                 # Use .push() for async processing as recommended by Sieve CTO
                 job = self.moments_function.push(
@@ -76,28 +86,80 @@ class SieveService:
                     render=render
                 )
                 
+                logger.info(f"🚀 Job pushed! Job running in background...")
+                logger.info(f"⏳ Waiting for results (this may take 2-5 minutes)...")
+                
                 # Get results (this blocks until complete)
+                query_start_time = time.time()
                 results = job.result()
+                query_processing_time = time.time() - query_start_time
+                
+                logger.info(f"✅ Query '{query}' completed in {query_processing_time:.1f}s")
                 
                 # Convert generator to list
                 results_list = list(results)
+                logger.info(f"📋 Raw results count: {len(results_list)}")
+                
+                # Log each result for debugging
+                for j, result in enumerate(results_list):
+                    logger.info(f"📄 Result {j+1}: {result}")
+                    logger.info(f"📄 Result type: {type(result)}")
                 
                 # Process results into our format
-                for result in results_list:
-                    start_time = result.get('start_time', 0)
-                    end_time = result.get('end_time', 0)
-                    duration = end_time - start_time  # Calculate duration
-                    
-                    moment = MomentResult(
-                        start_time=start_time,
-                        end_time=end_time,
-                        duration=duration,
-                        clip_url=result.get('clip_url'),  # Optional field
-                        description=f"Query: {query}"
-                    )
-                    all_moments.append(moment)
-                    
-                logger.info(f"Found {len(results_list)} moments for query: '{query}'")
+                for j, result in enumerate(results_list):
+                    try:
+                        if render:
+                            # When render=True: result is tuple of (clip, metadata)
+                            logger.info(f"🎬 Processing rendered result {j+1} (tuple format)")
+                            clip, metadata = result
+                            logger.info(f"🎬 Clip: {clip}")
+                            logger.info(f"📊 Metadata: {metadata}")
+                            start_time_val = metadata.get('start_time', 0)
+                            end_time_val = metadata.get('end_time', 0)
+                            clip_url = clip.url if hasattr(clip, 'url') else None
+                        else:
+                            # When render=False: result is just metadata dict
+                            logger.info(f"📊 Processing metadata-only result {j+1}")
+                            metadata = result
+                            logger.info(f"📊 Metadata: {metadata}")
+                            logger.info(f"📊 Metadata type: {type(metadata)}")
+                            
+                            # Handle different possible formats
+                            if hasattr(metadata, 'get'):
+                                # Dictionary-like object
+                                start_time_val = metadata.get('start_time', 0)
+                                end_time_val = metadata.get('end_time', 0)
+                            elif hasattr(metadata, 'start_time'):
+                                # Object with attributes
+                                start_time_val = metadata.start_time
+                                end_time_val = metadata.end_time
+                            else:
+                                logger.error(f"❌ Unknown metadata format: {type(metadata)}")
+                                continue
+                                
+                            clip_url = None
+                        
+                        duration = end_time_val - start_time_val
+                        
+                        logger.info(f"⏱️  Moment: {start_time_val:.2f}s - {end_time_val:.2f}s ({duration:.2f}s)")
+                        
+                        moment = MomentResult(
+                            start_time=start_time_val,
+                            end_time=end_time_val,
+                            duration=duration,
+                            clip_url=clip_url,
+                            description=f"Query: {query}"
+                        )
+                        all_moments.append(moment)
+                        
+                        logger.info(f"✅ Moment {j+1} processed successfully")
+                        
+                    except Exception as e:
+                        logger.error(f"❌ Error processing result {j+1}: {str(e)}")
+                        logger.error(f"❌ Result content: {result}")
+                        continue
+                
+                logger.info(f"✅ Query '{query}' processed: {len(results_list)} moments found")
             
             processing_time = time.time() - start_process_time
             
@@ -108,11 +170,22 @@ class SieveService:
                 processing_time=processing_time
             )
             
-            logger.info(f"Completed moments extraction. Total moments: {len(all_moments)}")
+            logger.info("="*80)
+            logger.info(f"🎉 MOMENTS EXTRACTION COMPLETED")
+            logger.info(f"📊 Total moments found: {len(all_moments)}")
+            logger.info(f"⏱️  Total processing time: {processing_time:.1f}s")
+            for i, moment in enumerate(all_moments):
+                logger.info(f"   Moment {i+1}: {moment.start_time:.1f}s - {moment.end_time:.1f}s ({moment.duration:.1f}s)")
+            logger.info("="*80)
+            
             return response
             
         except Exception as e:
-            logger.error(f"Error in moments extraction: {str(e)}")
+            logger.error("="*80)
+            logger.error(f"❌ SIEVE MOMENTS EXTRACTION FAILED")
+            logger.error(f"❌ Error: {str(e)}")
+            logger.error(f"❌ Error type: {type(e)}")
+            logger.error("="*80)
             raise Exception(f"Failed to extract moments: {str(e)}")
     
     async def ask_about_content(
@@ -192,16 +265,16 @@ class SieveService:
         Returns:
             Dictionary with moments and context analysis
         """
-        logger.info(f"Starting complete analysis for {prospect_name}")
-        logger.info(f"Topic: {query_topic}")
+        logger.info("="*80)
+        logger.info(f"🚀 STARTING COMPLETE ANALYSIS WORKFLOW")
+        logger.info(f"👤 Prospect: {prospect_name}")
+        logger.info(f"🎯 Topic: {query_topic}")
+        logger.info("="*80)
         
         # Step 1: Extract moments where the topic is discussed
-        moments_queries = [
-            f"{query_topic}",
-            f"artificial intelligence",
-            f"AI technology",
-            f"machine learning"
-        ]
+        moments_queries = [query_topic]
+        
+        logger.info(f"🔍 Step 1: Extracting moments for query: {query_topic}")
         
         moments_response = await self.extract_moments(
             podcast_url=podcast_url,
@@ -210,15 +283,20 @@ class SieveService:
         )
         
         if not moments_response.moments:
-            logger.warning(f"No moments found for topic: {query_topic}")
+            logger.warning(f"⚠️  No moments found for topic: {query_topic}")
             return {
                 "moments": [],
                 "context_analysis": "No relevant moments found",
                 "success": False
             }
         
+        logger.info(f"✅ Step 1 completed: Found {len(moments_response.moments)} moments")
+        
         # Step 2: Analyze the best moment for context
         best_moment = moments_response.moments[0]  # Take first/best result
+        
+        logger.info(f"🎯 Step 2: Analyzing best moment")
+        logger.info(f"⏱️  Best moment: {best_moment.start_time:.1f}s - {best_moment.end_time:.1f}s")
         
         context_prompt = f"""
         Analyze this specific segment where {prospect_name} discusses {query_topic}. 
@@ -239,10 +317,17 @@ class SieveService:
             backend=settings.sieve_backend
         )
         
-        return {
+        logger.info(f"✅ Step 2 completed: Context analysis generated")
+        logger.info(f"📝 Context length: {len(context_response.answer)} characters")
+        
+        result = {
             "moments": moments_response.moments,
             "context_analysis": context_response.answer,
-            "best_moment": best_moment,
+            "best_moment": {
+                "start_time": best_moment.start_time,
+                "end_time": best_moment.end_time,
+                "duration": best_moment.duration
+            },
             "success": True,
             "processing_info": {
                 "moments_found": len(moments_response.moments),
@@ -250,6 +335,13 @@ class SieveService:
                 "prospect_name": prospect_name
             }
         }
+        
+        logger.info("="*80)
+        logger.info(f"🎉 COMPLETE ANALYSIS WORKFLOW FINISHED")
+        logger.info(f"✅ Success: {result['success']}")
+        logger.info("="*80)
+        
+        return result
 
 # Global service instance
 sieve_service = SieveService() 
