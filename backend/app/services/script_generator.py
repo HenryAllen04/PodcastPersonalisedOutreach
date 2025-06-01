@@ -101,7 +101,7 @@ Your task is to:
         self,
         name: str,
         context: str
-    ) -> str:
+    ) -> GeneratedScript:
         """
         Simple script generation function matching the documentation example
         
@@ -110,7 +110,7 @@ Your task is to:
             context: Podcast context from Sieve analysis
             
         Returns:
-            Generated script text (string)
+            GeneratedScript object with the generated script
         """
         logger.info(f"Generating simple script for {name}")
         
@@ -142,8 +142,18 @@ Your task is to:
             )
             
             generated_text = response.choices[0].message.content.strip()
-            logger.info(f"Generated simple script: {len(generated_text.split())} words")
-            return generated_text
+            word_count = len(generated_text.split())
+            logger.info(f"Generated simple script: {word_count} words")
+            
+            # Return a proper GeneratedScript object
+            script = GeneratedScript(
+                script=generated_text,
+                target_length_seconds=20,  # Default 20 seconds
+                tone="casual",
+                created_at=datetime.now()
+            )
+            
+            return script
             
         except Exception as e:
             logger.error(f"Error generating simple script: {str(e)}")

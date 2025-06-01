@@ -32,27 +32,33 @@ const VoicenoteGenerator = () => {
     setIsProcessing(true)
     setError(null)
     setResult(null)
-    setCurrentStage('Initializing...')
+    setCurrentStage('Processing your voicenote... This may take 2-3 minutes.')
 
     try {
-      // Create form data for the API call
-      const apiFormData = new FormData()
-      apiFormData.append('video_url', formData.videoUrl)
-      apiFormData.append('topic', formData.topic)
+      // Create URL query parameters for the API call
+      const params = new URLSearchParams()
+      params.append('video_url', formData.videoUrl)
+      params.append('topic', formData.topic)
       if (formData.prospectName) {
-        apiFormData.append('prospect_name', formData.prospectName)
+        params.append('prospect_name', formData.prospectName)
       }
 
-      setCurrentStage('🎯 Stage 1: Extracting moments from video...')
-      
-      const response = await fetch('http://localhost:8000/generate-voicenote-simple', {
+      const response = await fetch(`http://localhost:8000/generate-voicenote-simple?${params}`, {
         method: 'POST',
-        body: apiFormData
+        headers: {
+          'Content-Type': 'application/json',
+        }
       })
 
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.detail || 'Failed to generate voicenote')
+        let errorMessage = 'Failed to generate voicenote'
+        try {
+          const errorData = await response.json()
+          errorMessage = errorData.detail || errorData.message || errorMessage
+        } catch (e) {
+          errorMessage = `HTTP ${response.status}: ${response.statusText}`
+        }
+        throw new Error(errorMessage)
       }
 
       const data = await response.json()
@@ -65,7 +71,8 @@ const VoicenoteGenerator = () => {
       }
 
     } catch (err) {
-      setError(err.message)
+      console.error('Error generating voicenote:', err)
+      setError(err.message || 'An unexpected error occurred')
       setCurrentStage('')
     } finally {
       setIsProcessing(false)
@@ -186,7 +193,7 @@ const VoicenoteGenerator = () => {
         <div className="processing-status">
           <div className="loading-spinner"></div>
           <p>{currentStage}</p>
-          <small>This may take 30-60 seconds...</small>
+          <small>This may take 2-3 minutes...</small>
         </div>
       )}
 

@@ -208,15 +208,15 @@ async def generate_simple_script(request: SimpleScriptRequest):
     shown in the documentation for creating concise, casual voicenote scripts.
     """
     try:
-        script_text = await script_generator.generate_simple_script(
+        script_result = await script_generator.generate_simple_script(
             name=request.name,
             context=request.context
         )
         
         return SimpleScriptResponse(
             name=request.name,
-            script=script_text,
-            word_count=len(script_text.split()),
+            script=script_result.script,
+            word_count=len(script_result.script.split()),
             success=True
         )
         
@@ -367,7 +367,7 @@ async def generate_complete_voicenote(
             context=analysis_result["context_analysis"]
         )
         
-        word_count = len(script.split())
+        word_count = len(script.script.split())
         processing_log.append(f"✅ Generated {word_count}-word script")
         
         # Step 4: ElevenLabs voicenote generation
@@ -377,7 +377,7 @@ async def generate_complete_voicenote(
             
             try:
                 file_path = await elevenlabs_service.create_voicenote_file(
-                    text=script,
+                    text=script.script,
                     output_path=None,
                     file_format="mp3"
                 )
@@ -410,7 +410,7 @@ async def generate_complete_voicenote(
             "query_topic": query_topic,
             "moments_found": len(analysis_result['moments']),
             "context_analysis": analysis_result["context_analysis"],
-            "generated_script": script,
+            "generated_script": script.script,
             "script_word_count": word_count,
             "voicenote": voicenote_info,
             "processing_log": processing_log,
@@ -499,9 +499,10 @@ async def generate_voicenote_simple(
         )
         
         stage3_time = time.time() - stage3_start
+        script_word_count = len(script_result.script.split())  # Calculate word count
         logger.info(f"✅ STAGE 3 COMPLETED in {stage3_time:.1f}s")
         logger.info(f"   📄 Script: \"{script_result.script}\"")
-        logger.info(f"   📊 Word count: {script_result.word_count} words")
+        logger.info(f"   📊 Word count: {script_word_count} words")
         
         # STAGE 4: VOICE SYNTHESIS
         logger.info("🎯 STAGE 4: VOICE SYNTHESIS (ElevenLabs)")
@@ -518,7 +519,7 @@ async def generate_voicenote_simple(
                 "video_url": video_url,
                 "prospect_name": prospect_name,
                 "generated_script": script_result.script,
-                "script_word_count": script_result.word_count,
+                "script_word_count": script_word_count,
                 "moments_found": len(analysis_result["moments"]),
                 "voicenote": None,
                 "processing_info": analysis_result["processing_info"],
@@ -562,7 +563,7 @@ async def generate_voicenote_simple(
             "video_url": video_url,
             "prospect_name": prospect_name,
             "generated_script": script_result.script,
-            "script_word_count": script_result.word_count,
+            "script_word_count": script_word_count,
             "moments_found": len(analysis_result["moments"]),
             "voicenote": {
                 "filename": filename,
