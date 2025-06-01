@@ -1,0 +1,378 @@
+/* Purpose: Styles for the VoicenoteGenerator component */
+
+.voicenote-generator {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 2rem;
+  width: 100%;
+}
+
+.generator-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.header-icon {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 1rem;
+}
+
+.header-icon svg {
+  font-size: 3rem;
+  color: #667eea;
+  filter: drop-shadow(0 4px 12px rgba(102, 126, 234, 0.3));
+}
+
+.generator-header h2 {
+  color: #4a5568;
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+}
+
+.generator-header p {
+  color: #718096;
+  font-size: 1.1rem;
+}
+
+.generator-form {
+  background: white;
+  border-radius: 16px;
+  padding: 2rem;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+  margin-bottom: 2rem;
+}
+
+.form-group {
+  margin-bottom: 1.5rem;
+}
+
+.form-group label {
+  display: block;
+  font-weight: 600;
+  color: #4a5568;
+  margin-bottom: 0.5rem;
+  font-size: 1rem;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 1rem;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.form-group input:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.form-group input:disabled {
+  background-color: #f7fafc;
+  color: #a0aec0;
+  cursor: not-allowed;
+}
+
+.form-group small {
+  display: block;
+  color: #718096;
+  font-size: 0.875rem;
+  margin-top: 0.25rem;
+}
+
+.form-actions {
+  display: flex;
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+.generate-button {
+  flex: 1;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  border: none;
+  padding: 1rem 2rem;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 1.1rem;
+  font-weight: 600;
+  transition: transform 0.2s, box-shadow 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.generate-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(102, 126, 234, 0.4);
+}
+
+.generate-button:disabled {
+  background: #cbd5e0;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.reset-button {
+  background: #f7fafc;
+  color: #4a5568;
+  border: 2px solid #e2e8f0;
+  padding: 1rem 1.5rem;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 500;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.reset-button:hover {
+  background: #edf2f7;
+  border-color: #cbd5e0;
+}
+
+.button-icon {
+  font-size: 1.2rem;
+}
+
+.spinning {
+  animation: spin 1s linear infinite;
+}
+
+/* Processing Status */
+.processing-status {
+  background: white;
+  border-radius: 16px;
+  padding: 2rem;
+  text-align: center;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+  margin-bottom: 2rem;
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #e2e8f0;
+  border-top: 4px solid #667eea;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 1rem;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.processing-status p {
+  font-size: 1.1rem;
+  color: #4a5568;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+}
+
+.processing-status small {
+  color: #718096;
+}
+
+/* Error Results */
+.error-result {
+  background: #fed7d7;
+  border: 2px solid #fc8181;
+  border-radius: 16px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+}
+
+.error-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.error-icon {
+  font-size: 1.5rem;
+  color: #c53030;
+}
+
+.error-result h3 {
+  color: #c53030;
+  margin: 0;
+}
+
+.error-result p {
+  color: #742a2a;
+  line-height: 1.5;
+}
+
+/* Success Results */
+.success-result {
+  background: white;
+  border-radius: 16px;
+  padding: 2rem;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+  margin-bottom: 2rem;
+}
+
+.success-result h3 {
+  color: #38a169;
+  margin-bottom: 1.5rem;
+  font-size: 1.5rem;
+}
+
+.result-details {
+  margin-bottom: 2rem;
+}
+
+.result-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.result-row:last-child {
+  border-bottom: none;
+}
+
+.result-row span:first-child {
+  font-weight: 600;
+  color: #4a5568;
+  min-width: 120px;
+}
+
+.result-row span:last-child {
+  color: #2d3748;
+  text-align: right;
+  flex: 1;
+  margin-left: 1rem;
+}
+
+.script-text {
+  font-style: italic;
+  background: #f7fafc;
+  padding: 0.5rem;
+  border-radius: 6px;
+  border-left: 4px solid #667eea;
+}
+
+.download-section {
+  text-align: center;
+  margin: 2rem 0;
+  padding: 1.5rem;
+  background: linear-gradient(135deg, #f0fff4, #c6f6d5);
+  border-radius: 12px;
+  border: 2px solid #68d391;
+}
+
+.download-button {
+  background: linear-gradient(135deg, #38a169, #2f855a);
+  color: white;
+  border: none;
+  padding: 1rem 2rem;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 1.1rem;
+  font-weight: 600;
+  transition: transform 0.2s, box-shadow 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.download-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(56, 161, 105, 0.4);
+}
+
+.no-audio-notice {
+  text-align: center;
+  padding: 1.5rem;
+  background: #fef5e7;
+  border: 2px solid #f6ad55;
+  border-radius: 12px;
+  margin: 2rem 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.warning-icon {
+  font-size: 1.5rem;
+  color: #f6ad55;
+}
+
+.no-audio-notice p {
+  color: #744210;
+  margin: 0;
+}
+
+.timing-breakdown {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  background: #f7fafc;
+  border-radius: 8px;
+}
+
+.timing-breakdown h4 {
+  color: #4a5568;
+  margin-bottom: 0.75rem;
+}
+
+.timing-breakdown ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.timing-breakdown li {
+  padding: 0.25rem 0;
+  color: #718096;
+  font-family: 'Courier New', monospace;
+  font-size: 0.9rem;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .voicenote-generator {
+    padding: 1rem;
+  }
+  
+  .generator-form {
+    padding: 1.5rem;
+  }
+  
+  .form-actions {
+    flex-direction: column;
+  }
+  
+  .result-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .result-row span:last-child {
+    text-align: left;
+    margin-left: 0;
+    margin-top: 0.25rem;
+  }
+  
+  .header-icon svg {
+    font-size: 2.5rem;
+  }
+  
+  .generator-header h2 {
+    font-size: 1.75rem;
+  }
+} 

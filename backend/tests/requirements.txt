@@ -1,0 +1,13 @@
+# Purpose: Additional dependencies for running PODVOX test suite
+
+# HTTP client for API testing
+httpx==0.24.1
+
+# Async testing support
+pytest-asyncio==0.21.1
+
+# Test coverage (optional)
+pytest-cov==4.1.0
+
+# API testing utilities
+pytest==7.4.0 

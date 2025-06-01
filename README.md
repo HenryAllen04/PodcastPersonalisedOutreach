@@ -297,35 +297,81 @@ insights = await sieve_service.ask_about_moments(
 
 ## 🧪 Testing
 
-Run the test script to verify Sieve integration:
+PODVOX has a comprehensive test suite organized in the `/tests` directory with multiple test categories:
 
+### Quick Start - Testing
 ```bash
-python test_sieve_integration.py
+# Install test dependencies
+pip install -r tests/requirements.txt
+
+# Run all tests
+cd tests
+python run_all_tests.py
+
+# Run specific test categories
+python run_all_tests.py --quick        # Quick direct API tests only
+python run_all_tests.py --direct       # Direct Sieve API tests
+python run_all_tests.py --api          # FastAPI endpoint tests (requires server running)
+python run_all_tests.py --integration  # End-to-end integration tests
 ```
 
-Expected output:
-```
-✅ Found 1 childhood-related moments!
-🎬 Childhood Moments Discovered:
-  1. [97:42] Duration: 22.0s
-✅ Got insights for moment 1!
-   A: The video features a man recounting a childhood experience...
+### Test Categories
+
+1. **Direct Sieve API Tests** (`test_sieve_direct.py`)
+   - Tests Sieve Moments and Ask APIs directly without FastAPI layer
+   - Fastest tests, good for development iteration
+   - Verifies core Sieve integration functionality
+
+2. **FastAPI Endpoint Tests** (`test_api_endpoints.py`)
+   - Tests all FastAPI endpoints with HTTP requests
+   - Requires FastAPI server running on localhost:8000
+   - Validates API contracts and response formats
+
+3. **Integration Tests** (`test_integration.py`)
+   - Complete end-to-end workflow testing
+   - Tests Moments → Ask → Script generation pipeline
+   - Multi-topic analysis and error handling
+
+### Expected Results
+```bash
+📝 PODVOX Test Suite - Running All Tests
+======================================================================
+Testing: Direct Sieve APIs → FastAPI Endpoints → Integration
+
+✅ Found 1 moments
+   Best moment: 6330.04s - 6355.04s (25.0s)
+✅ Got detailed analysis (1247 characters)
+✅ Generated script (324 characters)
+
+🎉 Complete workflow successful!
+   Total processing time: 367.2s
 ```
 
 ## 📁 Project Structure
 
 ```
-ContextualisedVoicenotes/
+PodcastPersonalisedOutreach/
 ├── app/
 │   ├── main.py              # FastAPI application
-│   ├── config.py             # Configuration management
+│   ├── config.py            # Configuration management
+│   ├── models.py            # Pydantic request/response models
 │   └── services/
 │       ├── sieve_service.py  # Sieve API integration
 │       └── script_generator.py # Script generation logic
-├── test_sieve_integration.py # Integration tests
-├── requirements.txt          # Python dependencies
-├── .env.example             # Environment variables template
-└── README.md                # This file
+├── tests/                   # Comprehensive test suite
+│   ├── __init__.py          # Python package init
+│   ├── requirements.txt     # Test-specific dependencies
+│   ├── run_all_tests.py     # Master test runner with CLI
+│   ├── test_sieve_direct.py # Direct Sieve API tests
+│   ├── test_api_endpoints.py # FastAPI endpoint tests
+│   └── test_integration.py  # End-to-end integration tests
+├── frontend/                # React frontend interface
+│   ├── src/                 # React components and logic
+│   ├── package.json         # Node dependencies
+│   └── ...
+├── requirements.txt         # Python dependencies
+├── .env.example            # Environment variables template
+└── README.md               # This file
 ```
 
 ## 🔑 Environment Variables
